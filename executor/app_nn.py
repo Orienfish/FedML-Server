@@ -108,8 +108,8 @@ def add_args(parser):
                         help='config table containing ipv4 address of grpc server')
 
     # Communication settings
-    parser.add_argument('--backend', type=str, default='mqtt', metavar='N',
-                        choices=['mqtt', 'MPI'],
+    parser.add_argument('--backend', type=str, default='MQTT', metavar='N',
+                        choices=['MQTT', 'MPI'],
                         help='communication backend')
     parser.add_argument('--mqtt_host', type=str, default='127.0.0.1', metavar='IP',
                         help='host IP in MQTT')

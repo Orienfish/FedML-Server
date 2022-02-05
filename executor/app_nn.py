@@ -51,6 +51,9 @@ def add_args(parser):
                         choices=['./../../../data/mnist', './../../../data/cifar10'],
                         help='data directory')
 
+    parser.add_argument('--result_dir', type=str, default='./result',
+                        help='result directory')
+
     parser.add_argument('--partition_method', type=str, default='homo', metavar='N',
                         choices=['homo', 'hetero', 'hetero-fix'],
                         help='how to partition the dataset on local workers')
@@ -268,15 +271,23 @@ if __name__ == '__main__':
 
     logging.info(args)
 
-    
+    trial_name = "fedml_{}_{}_{}_c{}_c{}_ds{}_{}_{}_{}_e{}_{}".format(
+        args.model, args.dataset, args.partition_method,
+        args.client_num_in_total, args.client_num_per_round,
+        args.data_size_per_client,
+        args.client_optimizer, args.lr, args.momentum, args.epochs,
+        args.comm_round
+    )
     wandb.init(
         # project="federated_nas",
         project="fedml_nn",
-        name="mobile(mqtt)" + str(args.partition_method) + "r" + str(args.comm_round) + "-e" + str(
-            args.epochs) + "-lr" + str(
-            args.lr),
+        name=trial_name,
         config=args
     )
+    args.result_dir = os.path.join(args.result_dir, trial_name)
+    # Create the result directory if not exists
+    if not os.path.exists(args.result_dir):
+        os.makedirs(args.result_dir)
     
 
     # Set the random seed. The np.random seed determines the dataset partition.

@@ -122,6 +122,9 @@ def add_args(parser):
     parser.add_argument('--mqtt_port', type=int, default=1883, metavar='N',
                         help='host port in MQTT')
 
+    parser.add_argument('--trial', type=int, default=0, metavar='N',
+                        help='the current trial number')
+
     args = parser.parse_args()
     return args
 
@@ -192,7 +195,8 @@ def register_device():
                           'grpc_ipconfig_path': args.grpc_ipconfig_path,
                           'backend': args.backend,
                           'mqtt_host': args.mqtt_host,
-                          'mqtt_port': args.mqtt_port}
+                          'mqtt_port': args.mqtt_port,
+                          'trial': args.trial}
 
     return jsonify({"errno": 0,
                     "executorId": "executorId",
@@ -269,18 +273,19 @@ if __name__ == '__main__':
 
     logging.info(args)
 
-    trial_name = "fedml_{}_{}_{}_c{}_c{}_ds{}_{}_{}_{}_e{}_{}".format(
+    trial_name = "fedml_{}_{}_{}_c{}_c{}_ds{}_{}_{}_{}_e{}_{}_{}".format(
         args.model, args.dataset, args.partition_method,
         args.client_num_in_total, args.client_num_per_round,
         args.data_size_per_client,
         args.client_optimizer, args.lr, args.momentum, args.epochs,
-        args.comm_round
+        args.comm_round, args.trial
     )
     wandb.init(
         # project="federated_nas",
         project="fedml_nn",
         name=trial_name,
-        config=args
+        config=args,
+        mode="offline" # to run without internet access
     )
     args.result_dir = os.path.join(args.result_dir, trial_name)
     # Create the result directory if not exists

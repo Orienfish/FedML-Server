@@ -16,9 +16,7 @@ from FedML.fedml_api.distributed.fedavg.FedAVGAggregator import FedAVGAggregator
 from FedML.fedml_api.distributed.fedavg.FedAvgServerManager import FedAVGServerManager
 from FedML.fedml_api.distributed.fedavg.MyModelTrainer import MyModelTrainer
 
-from FedML.fedml_api.data_preprocessing.MNIST.data_loader import load_partition_data_mnist
-from FedML.fedml_api.data_preprocessing.FashionMNIST.data_loader import load_partition_data_fashionmnist
-from FedML.fedml_api.data_preprocessing.cifar10.data_loader import load_partition_data_cifar10
+from FedML.fedml_api.data_preprocessing.load_data import load_partition_data
 from FedML.fedml_api.data_preprocessing.cifar100.data_loader import load_partition_data_cifar100
 from FedML.fedml_api.data_preprocessing.cinic10.data_loader import load_partition_data_cinic10
 from FedML.fedml_api.data_preprocessing.shakespeare.data_loader import load_partition_data_shakespeare
@@ -40,54 +38,57 @@ def add_args(parser):
     return a parser added with args required by fit
     """
     # Training settings
-    parser.add_argument('--model', type=str, default='nn', metavar='N',
+    parser.add_argument('--model', type=str, default='nn',
                         choices=['lr', 'rnn', 'resnet56', 'mobilenet', 'nn'],
                         help='neural network used in training')
 
-    parser.add_argument('--dataset', type=str, default='cifar10', metavar='N',
+    parser.add_argument('--dataset', type=str, default='cifar10',
                         choices=['mnist', 'fashionmnist', 'cifar10'],
                         help='dataset used for training')
-
-    # parser.add_argument('--data_dir', type=str, default='./../../../data/cifar10',
-    #                    choices=['./../../../data/mnist',
-    #                             './../../../data/fashionmnist',
-    #                             './../../../data/cifar10'],
-    #                    help='data directory')
 
     parser.add_argument('--result_dir', type=str, default='./result',
                         help='result directory')
 
-    parser.add_argument('--partition_method', type=str, default='homo', metavar='N',
-                        choices=['homo', 'hetero', 'hetero-fix'],
-                        help='how to partition the dataset on local workers')
+    parser.add_argument('--partition_method', type=str, default='iid',
+                        choices=['iid', 'noniid'],
+                        help='how to partition the dataset on local clients')
 
-    parser.add_argument('--partition_alpha', type=float, default=0.5, metavar='PA',
-                        help='partition alpha (default: 0.5)')
+    parser.add_argument('--partition_alpha', type=float, default=0.5,
+                        help='partition alpha (default: 0.5), used as the proportion'
+                             'of majority labels in non-iid in latest implementation')
 
-    parser.add_argument('--client_num_in_total', type=int, default=8, metavar='C',
+    parser.add_argument('--partition_secondary', type=bool, default=False,
+                        help='True to sample minority labels from one random secondary class,'
+                             'False to sample minority labels uniformly from the rest classes except the majority one')
+
+    parser.add_argument('--partition_label', type=str, default='uniform',
+                        choices=['uniform', 'normal'],
+                        help='how to assign labels to clients in non-iid data distribution')
+
+    parser.add_argument('--client_num_in_total', type=int, default=8,
                         help='number of workers in a distributed cluster')
 
-    parser.add_argument('--client_num_per_round', type=int, default=8, metavar='C',
+    parser.add_argument('--client_num_per_round', type=int, default=8,
                         help='number of workers')
 
-    parser.add_argument('--data_size_per_client', type=int, default=600, metavar='B',
+    parser.add_argument('--data_size_per_client', type=int, default=600,
                         help='input batch size for training (default: 64)')
 
-    parser.add_argument('--batch_size', type=int, default=100, metavar='B',
+    parser.add_argument('--batch_size', type=int, default=100,
                         help='input batch size for training (default: 64)')
 
     parser.add_argument('--client_optimizer', type=str, default='sgd',
                         help='SGD with momentum; adam')
 
-    parser.add_argument('--lr', type=float, default=0.01, metavar='LR',
+    parser.add_argument('--lr', type=float, default=0.01,
                         help='learning rate (default: 0.01)')
 
-    parser.add_argument('--momentum', type=float, default=0.9, metavar='MO',
+    parser.add_argument('--momentum', type=float, default=0.9,
                         help='sgd optimizer momentum')
 
     parser.add_argument('--wd', help='weight decay parameter;', type=float, default=0.001)
 
-    parser.add_argument('--epochs', type=int, default=5, metavar='EP',
+    parser.add_argument('--epochs', type=int, default=5,
                         help='how many epochs will be trained locally')
 
     parser.add_argument('--comm_round', type=int, default=100,
@@ -114,15 +115,15 @@ def add_args(parser):
                         help='config table containing ipv4 address of grpc server')
 
     # Communication settings
-    parser.add_argument('--backend', type=str, default='MQTT', metavar='N',
+    parser.add_argument('--backend', type=str, default='MQTT',
                         choices=['MQTT', 'MPI'],
                         help='communication backend')
-    parser.add_argument('--mqtt_host', type=str, default='127.0.0.1', metavar='IP',
+    parser.add_argument('--mqtt_host', type=str, default='127.0.0.1',
                         help='host IP in MQTT')
-    parser.add_argument('--mqtt_port', type=int, default=1883, metavar='N',
+    parser.add_argument('--mqtt_port', type=int, default=1883,
                         help='host port in MQTT')
 
-    parser.add_argument('--trial', type=int, default=0, metavar='N',
+    parser.add_argument('--trial', type=int, default=0,
                         help='the current trial number')
 
     args = parser.parse_args()
@@ -174,6 +175,8 @@ def register_device():
                           "data_dir": './../../../data/' + args.dataset,
                           "partition_method": args.partition_method,
                           "partition_alpha": args.partition_alpha,
+                          "partition_label": args.partition_label,
+                          "partition_secondary": args.partition_secondary,
                           "model": args.model,
                           "client_num_per_round": args.client_num_per_round,
                           "client_num_in_total": args.client_num_in_total,
@@ -212,28 +215,42 @@ def load_data(args, dataset_name):
         train_data_local_num_dict, train_data_local_dict, test_data_local_dict, \
         class_num = load_partition_data_shakespeare(args.batch_size)
         args.client_num_in_total = client_num
-    else:
-        if dataset_name == "mnist":
-            data_loader = load_partition_data_mnist
-        elif dataset_name == "fashionmnist":
-            data_loader = load_partition_data_fashionmnist
-        elif dataset_name == "cifar10":
-            data_loader = load_partition_data_cifar10
-        elif dataset_name == "cifar100":
+    elif dataset_name == "cifar100" or dataset_name == "cinic10":
+        if dataset_name == "cifar100":
             data_loader = load_partition_data_cifar100 # Not tested
-        elif dataset_name == "cinic10":
+        else: # cinic10
             data_loader = load_partition_data_cinic10 # Not tested
-        else:
-            raise ValueError('dataset not supported: {}'.format(args.dataset))
 
-        print("============================Starting loading {}==========================#".format(args.dataset))
+        print(
+            "============================Starting loading {}==========================#".format(
+                args.dataset))
         data_dir = './../../../data/' + args.dataset
         train_data_num, test_data_num, train_data_global, test_data_global, \
         train_data_local_num_dict, train_data_local_dict, test_data_local_dict, \
         class_num = data_loader(args.dataset, data_dir, args.partition_method,
-                                args.partition_alpha, args.client_num_in_total, args.batch_size,
+                                args.partition_alpha, args.client_num_in_total,
+                                args.batch_size)
+        print(
+            "================================={} loaded===============================#".format(
+                args.dataset))
+    elif dataset_name == "mnist" or dataset_name == "fashionmnist" or \
+        dataset_name == "cifar10":
+        data_loader = load_partition_data
+        print(
+            "============================Starting loading {}==========================#".format(
+                args.dataset))
+        data_dir = './../../../data/' + args.dataset
+        train_data_num, test_data_num, train_data_global, test_data_global, \
+        train_data_local_num_dict, train_data_local_dict, test_data_local_dict, \
+        class_num = data_loader(args.dataset, data_dir, args.partition_method,
+                                args.partition_label, args.partition_alpha, args.partition_secondary,
+                                args.client_num_in_total, args.batch_size,
                                 args.data_size_per_client)
-        print("================================={} loaded===============================#".format(args.dataset))
+        print(
+            "================================={} loaded===============================#".format(
+                args.dataset))
+    else:
+        raise ValueError('dataset not supported: {}'.format(args.dataset))
 
     dataset = [train_data_num, test_data_num, train_data_global, test_data_global,
                train_data_local_num_dict, train_data_local_dict, test_data_local_dict, class_num]

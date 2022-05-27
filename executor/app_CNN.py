@@ -1,4 +1,3 @@
-# batch_size  optimized   lr   comm_round     epochs
 
 import logging
 import os
@@ -6,30 +5,39 @@ import sys
 
 import argparse
 import numpy as np
+
 import torch
-import wandb
+import torch.nn as nn
+import torch_hd.hdlayers as hd
+from torch.utils.data import DataLoader, random_split, TensorDataset
+from torchmetrics.functional import accuracy
+import torchvision.transforms as transforms
+
+from pl_bolts.models.self_supervised import SimCLR
+# from cifarDataModule import CifarData
+
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.getcwd(), "../")))
 sys.path.insert(0, os.path.abspath(os.path.join(os.getcwd(), "../../")))
 
-from FedML.fedml_api.distributed.fedavg.FedAVGAggregator import FedAVGAggregator
-from FedML.fedml_api.distributed.fedavg.FedAvgServerManager import FedAVGServerManager
-from FedML.fedml_api.distributed.fedavg.MyModelTrainer import MyModelTrainer
+from FedML.fedml_api.distributed.BaselineCNN.cnn_ModelTrainer import MyModelTrainer
+from FedML.fedml_api.distributed.BaselineCNN.cnnAggregator import BaselineCNNAggregator
+from FedML.fedml_api.distributed.BaselineCNN.cnnServerManager import BaselineCNNServerManager
+
 
 from FedML.fedml_api.data_preprocessing.load_data import load_partition_data
 from FedML.fedml_api.data_preprocessing.cifar100.data_loader import load_partition_data_cifar100
 from FedML.fedml_api.data_preprocessing.cinic10.data_loader import load_partition_data_cinic10
 from FedML.fedml_api.data_preprocessing.shakespeare.data_loader import load_partition_data_shakespeare
 
-from FedML.fedml_api.model.cv.mobilenet import mobilenet
-from FedML.fedml_api.model.cv.resnet import resnet56
-from FedML.fedml_api.model.linear.lr import LogisticRegression
-from FedML.fedml_api.model.nlp.rnn import RNN_OriginalFedAvg
-from FedML.fedml_api.model.nn.NN import CNN_MNIST, CNN_FashionMNIST, CNN_CIFAR10
 
 from FedML.fedml_core.distributed.communication.observer import Observer
 
 from flask import Flask, request, jsonify, send_from_directory, abort
+
+from FedML.fedml_api.model.cnn_Baseline import FashionMNIST_Net
+from FedML.fedml_api.model.cnn_Baseline import MNIST_Net
+from FedML.fedml_api.model.cnn_Baseline import Cifar10_Net
 
 
 def add_args(parser):
@@ -37,94 +45,89 @@ def add_args(parser):
     parser : argparse.ArgumentParser
     return a parser added with args required by fit
     """
-    # Training settings
-    parser.add_argument('--model', type=str, default='nn',
-                        choices=['lr', 'rnn', 'resnet56', 'mobilenet', 'nn'],
-                        help='neural network used in training')
 
-    parser.add_argument('--dataset', type=str, default='cifar10',
+    parser.add_argument('--dataset', type=str, default='mnist',
                         choices=['mnist', 'fashionmnist', 'cifar10'],
                         help='dataset used for training')
 
-    parser.add_argument('--result_dir', type=str, default='./result',
-                        help='result directory')
 
     parser.add_argument('--partition_method', type=str, default='iid',
                         choices=['iid', 'noniid'],
                         help='how to partition the dataset on local clients')
+    
+    parser.add_argument('--D', type=int, default=10000,
+                help='dimensions for hvec')
+    
+        
+    parser.add_argument('--is_preprocessed', type=int, default=True,
+                help='if data is preprocessed')
 
-    parser.add_argument('--partition_alpha', type=float, default=0.5,
-                        help='partition alpha (default: 0.5), used as the proportion'
-                             'of majority labels in non-iid in latest implementation')
-
-    parser.add_argument('--partition_secondary', type=bool, default=False,
-                        help='True to sample minority labels from one random secondary class,'
-                             'False to sample minority labels uniformly from the rest classes except the majority one')
 
     parser.add_argument('--partition_label', type=str, default='uniform',
-                        choices=['uniform', 'normal'],
-                        help='how to assign labels to clients in non-iid data distribution')
+                        choices=['iid', 'noniid'],
+                        help='how to partition the dataset on local clients')
 
-    parser.add_argument('--client_num_in_total', type=int, default=8,
+    parser.add_argument('--partition_alpha', type=str, default=0.5,
+                        choices=['iid', 'noniid'],
+                        help='how to partition the dataset on local clients')
+
+    parser.add_argument('--partition_secondary', type=str, default=False,
+                        choices=['iid', 'noniid'],
+                        help='how to partition the dataset on local clients')
+
+    parser.add_argument('--data_size_per_client', type=str, default=500,
+                        choices=['iid', 'noniid'],
+                        help='how to partition the dataset on local clients')
+
+
+    parser.add_argument('--client_num_in_total', type=int, default=2,
                         help='number of workers in a distributed cluster')
 
-    parser.add_argument('--client_num_per_round', type=int, default=8,
+    parser.add_argument('--client_num_per_round', type=int, default=2,
                         help='number of workers')
 
-    parser.add_argument('--data_size_per_client', type=int, default=600,
+
+    parser.add_argument('--batch_size', type=int, default=10,
                         help='input batch size for training (default: 64)')
 
-    parser.add_argument('--batch_size', type=int, default=100,
-                        help='input batch size for training (default: 64)')
-
-    parser.add_argument('--client_optimizer', type=str, default='sgd',
-                        help='SGD with momentum; adam')
-
-    parser.add_argument('--lr', type=float, default=0.01,
+    parser.add_argument('--lr', type=float, default=0.001,
                         help='learning rate (default: 0.01)')
 
-    parser.add_argument('--momentum', type=float, default=0.9,
-                        help='sgd optimizer momentum')
 
-    parser.add_argument('--wd', help='weight decay parameter;', type=float, default=0.001)
-
-    parser.add_argument('--epochs', type=int, default=5,
+    parser.add_argument('--epochs', type=int, default=3,
                         help='how many epochs will be trained locally')
 
-    parser.add_argument('--comm_round', type=int, default=100,
+    parser.add_argument('--comm_round', type=int, default=20,
                         help='how many round of communications we should use')
 
-    parser.add_argument('--is_mobile', type=int, default=1,
-                        help='whether the program is running on the FedML-Mobile server side')
 
     parser.add_argument('--frequency_of_the_test', type=int, default=1,
                         help='the frequency of the algorithms')
 
-    parser.add_argument('--gpu_server_num', type=int, default=1,
-                        help='gpu_server_num')
-
-    parser.add_argument('--gpu_num_per_server', type=int, default=4,
-                        help='gpu_num_per_server')
-
-    parser.add_argument('--ci', type=int, default=0,
-                        help='continuous integration')
-
-    parser.add_argument('--is_preprocessed', type=bool, default=True, help='True if data has been preprocessed')
-
-    parser.add_argument('--grpc_ipconfig_path', type=str, default="../executor/grpc_ipconfig.csv",
-                        help='config table containing ipv4 address of grpc server')
+    
 
     # Communication settings
     parser.add_argument('--backend', type=str, default='MQTT',
                         choices=['MQTT', 'MPI'],
                         help='communication backend')
-    parser.add_argument('--mqtt_host', type=str, default='127.0.0.1',
+                        
+                        
+    parser.add_argument('--mqtt_host', type=str, default='10.0.137.51',
                         help='host IP in MQTT')
-    parser.add_argument('--mqtt_port', type=int, default=1883,
+                        
+                        
+    parser.add_argument('--mqtt_port', type=int, default=61613,
                         help='host port in MQTT')
 
-    parser.add_argument('--trial', type=int, default=0,
-                        help='the current trial number')
+
+    parser.add_argument('--test_batch_num', type=int, default=50,
+                        help='number of batch use for global test')
+                        
+                        
+    parser.add_argument('--momentum', type=float, default=0.9,
+                        help='sgd optimizer momentum 0.9')
+
+
 
     args = parser.parse_args()
     return args
@@ -172,34 +175,34 @@ def register_device():
         device_id_to_client_id_dict[device_id] = client_id
 
     training_task_args = {"dataset": args.dataset,
-                          "data_dir": './../../../data/' + args.dataset,
+                          "data_dir": './../../data/' + args.dataset,
                           "partition_method": args.partition_method,
-                          "partition_alpha": args.partition_alpha,
-                          "partition_label": args.partition_label,
-                          "partition_secondary": args.partition_secondary,
-                          "model": args.model,
+                          'partition_alpha' : args.partition_alpha,
+                          "partition_secondary" : args.partition_secondary,
+                          "partition_label" : args.partition_label,
+                          "data_size_per_client" : args.data_size_per_client,
+                          "D" : args.D,
+                          "momentum" : args.momentum,
                           "client_num_per_round": args.client_num_per_round,
                           "client_num_in_total": args.client_num_in_total,
-                          "data_size_per_client": args.data_size_per_client,
+
                           "comm_round": args.comm_round,
                           "epochs": args.epochs,
-                          "client_optimizer": args.client_optimizer,
+
                           "lr": args.lr,
-                          "momentum": args.momentum,
-                          "wd": args.wd,
+
                           "batch_size": args.batch_size,
                           "frequency_of_the_test": args.frequency_of_the_test,
-                          "is_mobile": args.is_mobile,
+
                           'dataset_url': '{}/get-preprocessed-data/{}'.format(
                               request.url_root,
                               client_id-1
                           ),
-                          'is_preprocessed': args.is_preprocessed,
-                          'grpc_ipconfig_path': args.grpc_ipconfig_path,
+
                           'backend': args.backend,
                           'mqtt_host': args.mqtt_host,
-                          'mqtt_port': args.mqtt_port,
-                          'trial': args.trial}
+                          'mqtt_port': args.mqtt_port}
+
 
     return jsonify({"errno": 0,
                     "executorId": "executorId",
@@ -224,7 +227,7 @@ def load_data(args, dataset_name):
         print(
             "============================Starting loading {}==========================#".format(
                 args.dataset))
-        data_dir = './../../../data/' + args.dataset
+        data_dir = './../../data/' + args.dataset
         train_data_num, test_data_num, train_data_global, test_data_global, \
         train_data_local_num_dict, train_data_local_dict, test_data_local_dict, \
         class_num = data_loader(args.dataset, data_dir, args.partition_method,
@@ -239,7 +242,7 @@ def load_data(args, dataset_name):
         print(
             "============================Starting loading {}==========================#".format(
                 args.dataset))
-        data_dir = './../../../data/' + args.dataset
+        data_dir = './../../data/' + args.dataset
         train_data_num, test_data_num, train_data_global, test_data_global, \
         train_data_local_num_dict, train_data_local_dict, test_data_local_dict, \
         class_num = data_loader(args.dataset, data_dir, args.partition_method,
@@ -256,32 +259,30 @@ def load_data(args, dataset_name):
                train_data_local_num_dict, train_data_local_dict, test_data_local_dict, class_num]
     return dataset
 
-def create_model(args, model_name, output_dim):
-    logging.info("create_model. model_name = %s, output_dim = %s" % (model_name, output_dim))
-    model = None
-    if model_name == "lr" and args.dataset == "cifar10":
-        model = LogisticRegression(32 * 32 * 3, output_dim)    #Dim?
-        args.client_optimizer = "sgd"
-    elif model_name == "rnn" and args.dataset == "shakespeare":
-        model = RNN_OriginalFedAvg(28 * 28, output_dim)
-        args.client_optimizer = "sgd"
-    elif model_name == "resnet56":
-        model = resnet56(class_num=output_dim)
-    elif model_name == "mobilenet":
-        model = mobilenet(class_num=output_dim)
-    elif model_name == "nn" and args.dataset == "mnist":
-        model = CNN_MNIST()
-    elif model_name == "nn" and args.dataset == "fashionmnist":
-        model = CNN_FashionMNIST()
-    elif model_name == "nn" and args.dataset == "cifar10":
-        model = CNN_CIFAR10()
+
+
+def create_model(args):
+    if args.dataset == "mnist":
+        model = MNIST_Net()
+    elif args.dataset == "fashionmnist":
+        model = FashionMNIST_Net()
+    elif args.dataset == "cifar10":
+        model = Cifar10_Net()
+    else:
+        print("Invalid dataset")
+        exit(0)
+
     return model
+
+
+
 
 
 if __name__ == '__main__':
     # MQTT client connection
     class Obs(Observer):
-        def receive_message(self, msg_type, msg_params) -> None:
+        def receive_message(self, msg_type, msg_params):
+#         def receive_message(self, msg_type, msg_params) -> None:
             print("receive_message(%s,%s)" % (msg_type, msg_params))
 
     # quick fix for issue in MacOS environment: https://github.com/openai/spinningup/issues/16
@@ -289,32 +290,13 @@ if __name__ == '__main__':
         os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 
     logging.info(args)
-
-    trial_name = "fedml_{}_{}_{}_c{}_c{}_ds{}_{}_{}_{}_e{}_{}_{}".format(
-        args.model, args.dataset, args.partition_method,
-        args.client_num_in_total, args.client_num_per_round,
-        args.data_size_per_client,
-        args.client_optimizer, args.lr, args.momentum, args.epochs,
-        args.comm_round, args.trial
-    )
-    wandb.init(
-        # project="federated_nas",
-        project="fedml_nn",
-        name=trial_name,
-        config=args,
-        mode="offline" # to run without internet access
-    )
-    args.result_dir = os.path.join(args.result_dir, trial_name)
-    # Create the result directory if not exists
-    if not os.path.exists(args.result_dir):
-        os.makedirs(args.result_dir)
     
 
-    # Set the random seed. The np.random seed determines the dataset partition.
-    # The torch_manual_seed determines the initial weight.
-    # We fix these two, so that we can reproduce the result.
-    np.random.seed(0)
-    torch.manual_seed(10)
+    batch_selection = []
+    for i in range(args.test_batch_num):
+        batch_selection.append(i)
+
+
 
     # GPU 0
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -327,24 +309,37 @@ if __name__ == '__main__':
     # create model.
     # Note if the model is DNN (e.g., ResNet), the training will be very slow.
     # In this case, please use our FedML distributed version (./fedml_experiments/distributed_fedavg)
-    model = create_model(args, model_name=args.model, output_dim=class_num)
-    model_trainer = MyModelTrainer(model)
 
 
-    aggregator = FedAVGAggregator(train_data_global, test_data_global, train_data_num,
+    model = create_model(args)
+
+    model_trainer = MyModelTrainer(model,args, device)
+    model_trainer.set_id("Server")
+
+
+    aggregator = BaselineCNNAggregator(args, train_data_global, test_data_global, train_data_num,
                                   train_data_local_dict, test_data_local_dict, train_data_local_num_dict,
-                                  args.client_num_per_round, device, args, model_trainer)
+                                  args.client_num_per_round, device, model_trainer)
+    
     size = args.client_num_per_round + 1
-    server_manager = FedAVGServerManager(args,
+    
+    
+    
+    
+    server_manager = BaselineCNNServerManager(args,
                                          aggregator,
                                          rank=0,
                                          size=size,
                                          backend="MQTT",
                                          mqtt_host=args.mqtt_host,
                                          mqtt_port=args.mqtt_port,
-                                         is_preprocessed=args.is_preprocessed)
+                                         is_preprocessed=args.is_preprocessed,
+                                         batch_selection=batch_selection)
+    
+    
+    
     server_manager.run()
 
     # if run in debug mode, process will be single threaded by default
     #app.run(host="127.0.0.1", port=5000)
-    app.run(host="0.0.0.0", port=5000)
+    app.run(host="10.0.137.51", port=5000)

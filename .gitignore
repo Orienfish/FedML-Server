@@ -3,3 +3,4 @@ executor/wandb
 **/.DS_Store
 *.txt
 *.zip
+*tensorboard*

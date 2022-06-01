@@ -10,8 +10,8 @@ import torch
 import torch.nn as nn
 #import torch_hd.hdlayers as hd
 from torch.utils.data import DataLoader, random_split, TensorDataset
-from torchmetrics.functional import accuracy
 import torchvision.transforms as transforms
+import tensorboard_logger as tb_logger
 
 #from pl_bolts.models.self_supervised import SimCLR
 # from cifarDataModule import CifarData
@@ -52,6 +52,7 @@ def add_args(parser):
     parser.add_argument('--dataset', type=str, default='mnist',
                         choices=['mnist', 'fashionmnist', 'cifar10'],
                         help='dataset used for training')
+
     parser.add_argument('--result_dir', type=str, default='./result',
                         help='result directory')
 
@@ -61,8 +62,7 @@ def add_args(parser):
     
     #parser.add_argument('--D', type=int, default=10000,
     #            help='dimensions for hvec')
-    
-        
+
     parser.add_argument('--is_preprocessed', type=int, default=True,
                 help='if data is preprocessed')
 
@@ -297,10 +297,17 @@ if __name__ == '__main__':
         args.comm_round, args.trial
     )
 
+    # Init results dir
     args.result_dir = os.path.join(args.result_dir, trial_name)
     # Create the result directory if not exists
     if not os.path.exists(args.result_dir):
         os.makedirs(args.result_dir)
+
+    # Init tensorboard logger
+    tb_folder = './tensorboard/' + trial_name
+    if not os.path.isdir(tb_folder):
+        os.makedirs(tb_folder)
+    logger = tb_logger.Logger(logdir=tb_folder, flush_secs=2)
 
     # Set the random seed. The np.random seed determines the dataset partition.
     # The torch_manual_seed determines the initial weight.
@@ -325,7 +332,7 @@ if __name__ == '__main__':
     # In this case, please use our FedML distributed version (./fedml_experiments/distributed_fedavg)
     model = create_model(args)
 
-    model_trainer = MyModelTrainer(model,args, device)
+    model_trainer = MyModelTrainer(model, args, device)
     model_trainer.set_id("Server")
 
     aggregator = BaselineCNNAggregator(args, train_data_global, test_data_global, train_data_num,
@@ -336,6 +343,7 @@ if __name__ == '__main__':
     
     server_manager = BaselineCNNServerManager(args,
                                          aggregator,
+                                         logger,
                                          rank=0,
                                          size=size,
                                          backend="MQTT",
@@ -343,9 +351,7 @@ if __name__ == '__main__':
                                          mqtt_port=args.mqtt_port,
                                          is_preprocessed=args.is_preprocessed,
                                          batch_selection=batch_selection)
-    
-    
-    
+
     server_manager.run()
 
     # if run in debug mode, process will be single threaded by default

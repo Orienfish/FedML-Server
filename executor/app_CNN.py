@@ -46,7 +46,7 @@ def add_args(parser):
     return a parser added with args required by fit
     """
     parser.add_argument('--method', type=str, default='fedavg',
-                        choices=['fedavg', 'fedasync',],
+                        choices=['fedavg', 'fedasync'],
                         help='FL training method')
 
     parser.add_argument('--dataset', type=str, default='mnist',
@@ -96,6 +96,12 @@ def add_args(parser):
     parser.add_argument('--lr', type=float, default=0.01,
                         help='learning rate (default: 0.01)')
 
+    parser.add_argument('--momentum', type=float, default=0.9,
+                        help='sgd optimizer momentum 0.9')
+
+    parser.add_argument('--rou', type=float, default=10.0,
+                        help='weight for l2 loss')
+
     parser.add_argument('--epochs', type=int, default=5,
                         help='how many epochs will be trained locally')
 
@@ -119,12 +125,17 @@ def add_args(parser):
 
     parser.add_argument('--test_batch_num', type=int, default=50,
                         help='number of batch use for global test')
-                        
-    parser.add_argument('--momentum', type=float, default=0.9,
-                        help='sgd optimizer momentum 0.9')
 
     parser.add_argument('--trial', type=int, default=0,
                         help='the current trial number')
+
+    # Async FL
+    parser.add_argument('--alpha', type=float, default=0.9,
+                        help='the decay parameter in async aggregation')
+
+    parser.add_argument('--staleness_func', type=str, default='polynomial',
+                        choices=['polynomial', 'constant', 'hinge'],
+                        help='the staleness function in async aggregation')
 
     args = parser.parse_args()
     return args
@@ -190,7 +201,7 @@ def register_device():
                           "client_optimizer": args.client_optimizer,
                           "lr": args.lr,
                           "momentum": args.momentum,
-
+                          "rou": args.rou,
                           "batch_size": args.batch_size,
                           "frequency_of_the_test": args.frequency_of_the_test,
 

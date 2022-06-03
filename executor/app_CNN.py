@@ -70,7 +70,7 @@ def add_args(parser):
                         help='partition alpha (default: 0.5), used as the proportion'
                              'of majority labels in non-iid in latest implementation')
 
-    parser.add_argument('--partition_secondary', type=bool, default=False,
+    parser.add_argument('--partition_secondary', default=False, action='store_true',
                         help='True to sample minority labels from one random secondary class,'
                              'False to sample minority labels uniformly from the rest classes except the majority one')
 

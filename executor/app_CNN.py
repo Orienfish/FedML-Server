@@ -81,10 +81,10 @@ def add_args(parser):
     parser.add_argument('--data_size_per_client', type=int, default=600,
                         help='Number of samples per client (default: 600)')
 
-    parser.add_argument('--client_num_in_total', type=int, default=10,
+    parser.add_argument('--client_num_in_total', type=int, default=1,
                         help='number of workers in a distributed cluster')
 
-    parser.add_argument('--client_num_per_round', type=int, default=2,
+    parser.add_argument('--client_num_per_round', type=int, default=1,
                         help='number of workers')
 
     parser.add_argument('--batch_size', type=int, default=64,
@@ -105,7 +105,7 @@ def add_args(parser):
     parser.add_argument('--epochs', type=int, default=5,
                         help='how many epochs will be trained locally')
 
-    parser.add_argument('--comm_round', type=int, default=20,
+    parser.add_argument('--comm_round', type=int, default=2,
                         help='how many round of communications we should use')
 
     parser.add_argument('--frequency_of_the_test', type=int, default=1,
@@ -117,11 +117,17 @@ def add_args(parser):
                         choices=['MQTT', 'MPI'],
                         help='communication backend')
 
-    parser.add_argument('--mqtt_host', type=str, default='10.0.137.51',
+    parser.add_argument('--mqtt_host', type=str, default='127.0.0.1',
                         help='host IP in MQTT')
 
     parser.add_argument('--mqtt_port', type=int, default=61613,
                         help='host port in MQTT')
+
+    parser.add_argument('--server_ip', type=str, default='127.0.0.1',
+                        help='server IP in Flask')
+
+    parser.add_argument('--server_port', type=int, default=5000,
+                        help='server port in Flask')
 
     parser.add_argument('--test_batch_num', type=int, default=50,
                         help='number of batch use for global test')
@@ -366,5 +372,4 @@ if __name__ == '__main__':
     server_manager.run()
 
     # if run in debug mode, process will be single threaded by default
-    #app.run(host="127.0.0.1", port=5000)
-    app.run(host="132.239.17.133", port=5000)
+    app.run(host=args.server_ip, port=args.server_port)

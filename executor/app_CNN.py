@@ -136,7 +136,7 @@ def add_args(parser):
                         help='the current trial number')
 
     # Async FL
-    parser.add_argument('--alpha', type=float, default=0.5,
+    parser.add_argument('--alpha', type=float, default=0.9,
                         help='the decay parameter in async aggregation')
 
     parser.add_argument('--staleness_func', type=str, default='polynomial',

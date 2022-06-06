@@ -105,8 +105,11 @@ def add_args(parser):
     parser.add_argument('--epochs', type=int, default=5,
                         help='how many epochs will be trained locally')
 
-    parser.add_argument('--comm_round', type=int, default=2,
+    parser.add_argument('--comm_round', type=int, default=2000,
                         help='how many round of communications we should use')
+
+    parser.add_argument('--target_accuracy', type=float, default=0.8,
+                        help='target accuracy to reach')
 
     parser.add_argument('--frequency_of_the_test', type=int, default=1,
                         help='the frequency of the algorithms')
@@ -200,7 +203,7 @@ def register_device():
                           "partition_label" : args.partition_label,
                           "data_size_per_client" : args.data_size_per_client,
                           # "D" : args.D,
-                          "client_num_per_round": args.client_num_per_round,
+                          #"client_num_per_round": args.client_num_per_round,
                           "client_num_in_total": args.client_num_in_total,
 
                           "comm_round": args.comm_round,

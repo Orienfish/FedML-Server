@@ -111,6 +111,9 @@ def add_args(parser):
     parser.add_argument('--frequency_of_the_test', type=int, default=1,
                         help='the frequency of the algorithms')
 
+    parser.add_argument('--round_delay_limit', type=int, default=1200,
+                        help='the max waiting time in sync round')
+
 
     # Communication settings
     parser.add_argument('--backend', type=str, default='MQTT',
@@ -199,7 +202,6 @@ def register_device():
                           # "D" : args.D,
                           "client_num_per_round": args.client_num_per_round,
                           "client_num_in_total": args.client_num_in_total,
-                          "data_size_per_client": args.data_size_per_client,
 
                           "comm_round": args.comm_round,
                           "epochs": args.epochs,
@@ -353,8 +355,8 @@ if __name__ == '__main__':
     model_trainer.set_id("Server")
 
     aggregator = BaselineCNNAggregator(args, train_data_global, test_data_global, train_data_num,
-                                  train_data_local_dict, test_data_local_dict, train_data_local_num_dict,
-                                  args.client_num_per_round, device, model_trainer)
+                                       train_data_local_dict, test_data_local_dict, train_data_local_num_dict,
+                                       args.client_num_in_total, device, model_trainer)
     
     size = args.client_num_per_round + 1
     

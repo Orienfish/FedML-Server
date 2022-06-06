@@ -5,3 +5,4 @@ executor/wandb
 result*
 *.zip
 *tensorboard*
+*.log

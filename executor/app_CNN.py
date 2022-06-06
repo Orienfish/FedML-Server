@@ -203,7 +203,7 @@ def register_device():
                           "partition_label" : args.partition_label,
                           "data_size_per_client" : args.data_size_per_client,
                           # "D" : args.D,
-                          #"client_num_per_round": args.client_num_per_round,
+                          "client_num_per_round": args.client_num_per_round,
                           "client_num_in_total": args.client_num_in_total,
 
                           "comm_round": args.comm_round,

@@ -57,7 +57,7 @@ def add_args(parser):
                         help='result directory')
 
     parser.add_argument('--partition_method', type=str, default='iid',
-                        choices=['iid', 'noniid'],
+                        choices=['iid', 'bias', 'noniid'],
                         help='how to partition the dataset on local clients')
     
     #parser.add_argument('--D', type=int, default=10000,
@@ -68,11 +68,17 @@ def add_args(parser):
 
     parser.add_argument('--partition_alpha', type=float, default=0.5,
                         help='partition alpha (default: 0.5), used as the proportion'
-                             'of majority labels in non-iid in latest implementation')
+                             'of majority labels in non-iid in bias loader')
 
     parser.add_argument('--partition_secondary', default=False, action='store_true',
-                        help='True to sample minority labels from one random secondary class,'
+                        help='Used in bias loader. True to sample minority labels from one random secondary class,'
                              'False to sample minority labels uniformly from the rest classes except the majority one')
+
+    parser.add_argument('--partition_min_cls', type=int, default=1,
+                        help='the min number of classes on each client used in noniid loader')
+
+    parser.add_argument('--partition_max_cls', type=int, default=10,
+                        help='the max number of classes on each client used in noniid loader')
 
     parser.add_argument('--partition_label', type=str, default='uniform',
                         choices=['uniform', 'normal'],
@@ -198,10 +204,12 @@ def register_device():
                           "dataset": args.dataset,
                           "data_dir": './../../data/' + args.dataset,
                           "partition_method": args.partition_method,
-                          'partition_alpha' : args.partition_alpha,
-                          "partition_secondary" : args.partition_secondary,
-                          "partition_label" : args.partition_label,
-                          "data_size_per_client" : args.data_size_per_client,
+                          'partition_alpha': args.partition_alpha,
+                          "partition_secondary": args.partition_secondary,
+                          "partition_min_cls": args.partition_min_cls,
+                          "partition_max_cls": args.partition_maxc_cls,
+                          "partition_label": args.partition_label,
+                          "data_size_per_client": args.data_size_per_client,
                           # "D" : args.D,
                           "client_num_per_round": args.client_num_per_round,
                           "client_num_in_total": args.client_num_in_total,

@@ -155,6 +155,22 @@ def add_args(parser):
                         choices=['polynomial', 'constant', 'hinge'],
                         help='the staleness function in async aggregation')
 
+    parser.add_argument('-sel', '--selection', type=str, default='random',
+                        choices=['random', 'high_loss_first', 'short_latency_first',
+                                 'short_latency_high_loss_first', 'divfl',
+                                 'coreset', 'tier'],
+                        help='Client selection algorithm.')
+
+    parser.add_argument('-gamma', '--cs_gamma', type=float, default=0.2,
+                        help='Weight for delay in client selection.')
+
+    parser.add_argument('-ass', '--association', type=str, default='random',
+                        choices=['random', 'gurobi'],
+                        help='Client association algorithm.')
+
+    parser.add_argument('-phi', '--ca_phi', type=float, default=0.2,
+                        help='Weight for throughput balancing in client association.')
+
     args = parser.parse_args()
     return args
 
@@ -370,13 +386,11 @@ if __name__ == '__main__':
                                        train_data_local_dict, test_data_local_dict, train_data_local_num_dict,
                                        args.client_num_in_total, device, model_trainer)
     
-    size = args.client_num_per_round + 1
-    
     server_manager = BaselineCNNServerManager(args,
                                          aggregator,
                                          logger,
                                          rank=0,
-                                         size=size,
+                                         size=args.client_num_in_total + 1,
                                          backend="MQTT",
                                          mqtt_host=args.mqtt_host,
                                          mqtt_port=args.mqtt_port,

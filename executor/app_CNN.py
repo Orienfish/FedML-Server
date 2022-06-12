@@ -120,7 +120,7 @@ def add_args(parser):
     parser.add_argument('--frequency_of_the_test', type=int, default=1,
                         help='the frequency of the algorithms')
 
-    parser.add_argument('--round_delay_limit', type=int, default=1200,
+    parser.add_argument('--round_delay_limit', type=int, default=2000,
                         help='the max waiting time in sync round')
 
 

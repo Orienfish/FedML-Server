@@ -336,10 +336,10 @@ if __name__ == '__main__':
 
     logging.info(args)
 
-    trial_name = "fedml_{}_{}_{}_c{}_c{}_ds{}_{}_{}_{}_e{}_{}_{}".format(
+    trial_name = "fedml_{}_{}_{}_c{}_c{}_{}_ds{}_{}_{}_{}_e{}_{}_{}".format(
         args.method, args.dataset, args.partition_method,
         args.client_num_in_total, args.client_num_per_round,
-        args.data_size_per_client,
+        args.selection, args.data_size_per_client,
         args.client_optimizer, args.lr, args.momentum, args.epochs,
         args.comm_round, args.trial
     )

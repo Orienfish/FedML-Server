@@ -17,9 +17,9 @@ CLIENTS_PER_ROUND=10
 
 # Set proper global rounds
 if [ "$1" = "mnist" ] ; then
-  target_acc=0.95
+  target_acc=0.9
 elif [ "$1" = "fashionmnist" ] ; then
-  target_acc=0.85
+  target_acc=0.8
 fi
 
 # iid

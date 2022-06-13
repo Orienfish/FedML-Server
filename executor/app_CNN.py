@@ -111,8 +111,8 @@ def add_args(parser):
     parser.add_argument('--epochs', type=int, default=5,
                         help='how many epochs will be trained locally')
 
-    parser.add_argument('--comm_round', type=int, default=2000,
-                        help='how many round of communications we should use')
+    parser.add_argument('--comm_round', type=int, default=20,
+                        help='how many round of communications in sync we should use')
 
     parser.add_argument('--target_accuracy', type=float, default=0.8,
                         help='target accuracy to reach')
@@ -333,6 +333,10 @@ if __name__ == '__main__':
     # quick fix for issue in MacOS environment: https://github.com/openai/spinningup/issues/16
     if sys.platform == 'darwin':
         os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
+
+    # If use async, update the comm_round by the client_num_per_round
+    if args.method == 'fedasync':
+        args.comm_round = args.comm_round * args.client_num_per_round
 
     logging.info(args)
 

@@ -120,7 +120,7 @@ def add_args(parser):
     parser.add_argument('--frequency_of_the_test', type=int, default=1,
                         help='the frequency of the algorithms')
 
-    parser.add_argument('--round_delay_limit', type=int, default=2000,
+    parser.add_argument('--round_delay_limit', type=int, default=1200,
                         help='the max waiting time in sync round')
 
 
@@ -340,7 +340,7 @@ if __name__ == '__main__':
 
     logging.info(args)
 
-    trial_name = "fedml_{}_{}_{}_c{}_c{}_{}_ds{}_{}_{}_{}_e{}_{}_{}".format(
+    args.trial_name = "fedml_{}_{}_{}_c{}_c{}_{}_ds{}_{}_{}_{}_e{}_{}_{}".format(
         args.method, args.dataset, args.partition_method,
         args.client_num_in_total, args.client_num_per_round,
         args.selection, args.data_size_per_client,
@@ -349,13 +349,13 @@ if __name__ == '__main__':
     )
 
     # Init results dir
-    args.result_dir = os.path.join(args.result_dir, trial_name)
+    args.result_dir = os.path.join(args.result_dir, args.trial_name)
     # Create the result directory if not exists
     if not os.path.exists(args.result_dir):
         os.makedirs(args.result_dir)
 
     # Init tensorboard logger
-    tb_folder = './tensorboard/' + trial_name
+    tb_folder = './tensorboard/' + args.trial_name
     if not os.path.isdir(tb_folder):
         os.makedirs(tb_folder)
     logger = tb_logger.Logger(logdir=tb_folder, flush_secs=2)

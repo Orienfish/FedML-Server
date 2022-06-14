@@ -6,3 +6,4 @@ result*
 *.zip
 *tensorboard*
 *.log
+log*

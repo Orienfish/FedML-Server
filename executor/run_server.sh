@@ -12,8 +12,8 @@
 
 MQTT_HOST=132.239.17.132
 MQTT_PORT=61613
-TOTAL_CLIENTS=40
-CLIENTS_PER_ROUND=10
+TOTAL_CLIENTS=10
+CLIENTS_PER_ROUND=5
 
 # Set proper global rounds
 if [ "$1" = "mnist" ] ; then

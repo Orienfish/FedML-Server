@@ -64,7 +64,7 @@ def add_args(parser):
     #            help='dimensions for hvec')
 
     parser.add_argument('--is_preprocessed', type=int, default=True,
-                help='if data is preprocessed')
+                        help='if data is preprocessed')
 
     parser.add_argument('--partition_alpha', type=float, default=0.5,
                         help='partition alpha (default: 0.5), used as the proportion'
@@ -90,7 +90,7 @@ def add_args(parser):
     parser.add_argument('--client_num_in_total', type=int, default=1,
                         help='number of workers in a distributed cluster')
 
-    parser.add_argument('--client_num_per_round', type=int, default=1,
+    parser.add_argument('--client_num_per_gateway', type=int, default=1,
                         help='number of workers')
 
     parser.add_argument('--batch_size', type=int, default=64,
@@ -112,7 +112,10 @@ def add_args(parser):
                         help='how many epochs will be trained locally')
 
     parser.add_argument('--comm_round', type=int, default=20,
-                        help='how many round of communications in sync we should use')
+                        help='how many round of communications we should use')
+
+    parser.add_argument('--gateway_comm_round', type=int, default=5,
+                        help='how many round of communications we should use')
 
     parser.add_argument('--target_accuracy', type=float, default=0.8,
                         help='target accuracy to reach')
@@ -171,6 +174,9 @@ def add_args(parser):
     parser.add_argument('-phi', '--ca_phi', type=float, default=0.2,
                         help='Weight for throughput balancing in client association.')
 
+    parser.add_argument('--gateway_num_in_total', type=int, default=1,
+                        help='number of workers in a distributed cluster')
+
     args = parser.parse_args()
     return args
 
@@ -227,10 +233,12 @@ def register_device():
                           "partition_label": args.partition_label,
                           "data_size_per_client": args.data_size_per_client,
                           # "D" : args.D,
-                          "client_num_per_round": args.client_num_per_round,
+                          "client_num_per_gateway": args.client_num_per_gateway,
                           "client_num_in_total": args.client_num_in_total,
+                          "gateway_num_in_total": args.gateway_num_in_total,
 
                           "comm_round": args.comm_round,
+                          "gateway_comm_round": args.gateway_comm_round,
                           "epochs": args.epochs,
 
                           "client_optimizer": args.client_optimizer,
@@ -333,10 +341,6 @@ if __name__ == '__main__':
     # quick fix for issue in MacOS environment: https://github.com/openai/spinningup/issues/16
     if sys.platform == 'darwin':
         os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
-
-    # If use async, update the comm_round by the client_num_per_round
-    if args.method == 'fedasync':
-        args.comm_round = args.comm_round * args.client_num_per_round
 
     logging.info(args)
 

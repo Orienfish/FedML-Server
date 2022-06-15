@@ -8,6 +8,7 @@ import numpy as np
 import requests
 
 import torch
+import tensorboard_logger as tb_logger
 
 #from pl_bolts.models.self_supervised import SimCLR
 # from cifarDataModule import CifarData
@@ -17,7 +18,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.getcwd(), "../../")))
 
 from FedML.fedml_api.distributed.BaselineCNN.cnn_ModelTrainer import MyModelTrainer
 from FedML.fedml_api.distributed.BaselineCNN.cnn_Trainer import BaseCNN_Trainer
-from FedML.fedml_api.distributed.BaselineCNN.cnnClientManager import BaseCNNClientManager
+from FedML.fedml_api.distributed.BaselineCNN.cnnGatewayManager import BaselineCNNGatewayManager
 
 from FedML.fedml_api.data_preprocessing.load_data import load_partition_data
 from FedML.fedml_api.data_preprocessing.cifar100.data_loader import load_partition_data_cifar100
@@ -211,8 +212,50 @@ if __name__ == '__main__':
     #                                          mqtt_host=args.mqtt_host,
     #                                          mqtt_port=args.mqtt_port)
 
-    client_manager = BaseCNNClientManager(args.mqtt_port, args.mqtt_host, args, trainer,
-                                          rank=client_ID, size=size, backend="MQTT")
+    # Init results dir
+    args.result_dir = os.path.join(args.result_dir, args.trial_name)
+    # Create the result directory if not exists
+    if not os.path.exists(args.result_dir):
+        os.makedirs(args.result_dir)
+
+    # Init tensorboard logger
+    tb_folder = './tensorboard/' + args.trial_name
+    if not os.path.isdir(tb_folder):
+        os.makedirs(tb_folder)
+    logger = tb_logger.Logger(logdir=tb_folder, flush_secs=2)
+
+    # Set the random seed. The np.random seed determines the dataset partition.
+    # The torch_manual_seed determines the initial weight.
+    # We fix these two, so that we can reproduce the result.
+    np.random.seed(args.trial)
+    torch.manual_seed(args.trial)
+
+    batch_selection = []
+    for i in range(args.test_batch_num):
+        batch_selection.append(i)
+
+    # create model.
+    # Note if the model is DNN (e.g., ResNet), the training will be very slow.
+    # In this case, please use our FedML distributed version (./fedml_experiments/distributed_fedavg)
+    model = create_model(args)
+
+    model_trainer = MyModelTrainer(model, args, device)
+    model_trainer.set_id("Server")
+
+    aggregator = BaselineCNNAggregator(args, train_data_global, test_data_global, train_data_num,
+                                       train_data_local_dict, test_data_local_dict, train_data_local_num_dict,
+                                       args.client_num_in_total, device, model_trainer)
+
+    client_manager = BaselineCNNGatewayManager(args,
+                                         aggregator,
+                                         logger,
+                                         rank=0,
+                                         size=args.client_num_in_total + 1,
+                                         backend="MQTT",
+                                         mqtt_host=args.mqtt_host,
+                                         mqtt_port=args.mqtt_port,
+                                         is_preprocessed=args.is_preprocessed,
+                                         batch_selection=batch_selection)
 
     client_manager.run()
 

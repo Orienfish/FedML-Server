@@ -174,6 +174,9 @@ def add_args(parser):
     parser.add_argument('-phi', '--ca_phi', type=float, default=0.2,
                         help='Weight for throughput balancing in client association.')
 
+    parser.add_argument('--adjust_round', type=int, default=1,
+                        help='number of rounds to trigger device-gateway association')
+
     parser.add_argument('--gateway_num_in_total', type=int, default=1,
                         help='number of workers in a distributed cluster')
 
@@ -344,12 +347,12 @@ if __name__ == '__main__':
 
     logging.info(args)
 
-    args.trial_name = "fedml_{}_{}_{}_c{}_c{}_{}_ds{}_{}_{}_{}_e{}_{}_{}".format(
+    args.trial_name = "fedml_{}_{}_{}_c{}_c{}_{}_{}_ds{}_{}_{}_{}_e{}_{}_{}_{}".format(
         args.method, args.dataset, args.partition_method,
-        args.client_num_in_total, args.client_num_per_round,
-        args.selection, args.data_size_per_client,
+        args.client_num_in_total, args.client_num_per_gateway,
+        args.selection, args.association, args.data_size_per_client,
         args.client_optimizer, args.lr, args.momentum, args.epochs,
-        args.comm_round, args.trial
+        args.comm_round, args.adjust_round, args.trial
     )
 
     # Init results dir

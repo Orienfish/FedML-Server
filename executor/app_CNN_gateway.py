@@ -18,6 +18,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.getcwd(), "../../")))
 
 from FedML.fedml_api.distributed.BaselineCNN.cnn_ModelTrainer import MyModelTrainer
 from FedML.fedml_api.distributed.BaselineCNN.cnn_Trainer import BaseCNN_Trainer
+from FedML.fedml_api.distributed.BaselineCNN.cnnAggregator import BaselineCNNAggregator
 from FedML.fedml_api.distributed.BaselineCNN.cnnGatewayManager import BaselineCNNGatewayManager
 
 from FedML.fedml_api.data_preprocessing.load_data import load_partition_data
@@ -33,7 +34,7 @@ def add_args(parser):
     parser.add_argument('--server_ip', type=str, default="http://127.0.0.1:5000",
                         help='IP address of the FedML server')
     parser.add_argument('--client_uuid', type=str, default="0",
-                        help='number of workers in a distributed cluster')
+                        help='the ID of the client/gateway')
     args = parser.parse_args()
     return args
 
@@ -58,7 +59,9 @@ def register(args, uuid):
             self.method = training_task_args['method']
             self.dataset = training_task_args['dataset']
             self.data_dir = training_task_args['data_dir']
+            self.result_dir = training_task_args['result_dir']
             self.partition_method = training_task_args['partition_method']
+            self.is_preprocessed = training_task_args['is_preprocessed']
             self.partition_alpha = training_task_args['partition_alpha']
             self.partition_secondary = training_task_args['partition_secondary']
             self.partition_min_cls = training_task_args['partition_min_cls']
@@ -66,21 +69,30 @@ def register(args, uuid):
             self.partition_label = training_task_args['partition_label']
             self.data_size_per_client = training_task_args['data_size_per_client']
             # self.D = training_task_args['D']
-            self.client_num_per_round = training_task_args['client_num_per_round']
+            self.client_num_per_gateway = training_task_args['client_num_per_gateway']
             self.client_num_in_total = training_task_args['client_num_in_total']
             self.gateway_num_in_total = training_task_args['gateway_num_in_total']
             self.comm_round = training_task_args['comm_round']
             self.gateway_comm_round = training_task_args['gateway_comm_round']
             self.epochs = training_task_args['epochs']
+            self.client_optimizer = training_task_args['client_optimizer']
             self.lr = training_task_args['lr']
             self.momentum = training_task_args['momentum']
             self.rou = training_task_args['rou']
             self.batch_size = training_task_args['batch_size']
             self.frequency_of_the_test = training_task_args['frequency_of_the_test']
+            self.round_delay_limit = training_task_args['round_delay_limit']
             self.backend = training_task_args['backend']
             self.mqtt_host = training_task_args['mqtt_host']
             self.mqtt_port = training_task_args['mqtt_port']
+            self.test_batch_num = training_task_args['test_batch_num']
             self.trial = training_task_args['trial']
+            self.selection = training_task_args['selection']
+            self.cs_gamma = training_task_args['cs_gamma']
+            self.association = training_task_args['association']
+            self.ca_phi = training_task_args['ca_phi']
+            self.adjust_round = training_task_args['adjust_round']
+
 
     args = Args()
     return client_ID, args
@@ -172,8 +184,28 @@ if __name__ == '__main__':
     logging.info("client_ID = " + str(client_ID))
     logging.info("method = " + str(args.method))
     logging.info("dataset = " + str(args.dataset))
-    logging.info("client_num_per_round = " + str(args.client_num_per_round))
+    logging.info("client_num_per_gateway = " + str(args.client_num_per_gateway))
     client_index = client_ID - 1
+
+    args.trial_name = "fedml_{}_{}_{}_c{}_c{}_{}_{}_ds{}_{}_{}_{}_e{}_{}_{}_{}".format(
+        args.method, args.dataset, args.partition_method,
+        args.client_num_in_total, args.client_num_per_gateway,
+        args.selection, args.association, args.data_size_per_client,
+        args.client_optimizer, args.lr, args.momentum, args.epochs,
+        args.comm_round, args.adjust_round, args.trial
+    )
+
+    # Init results dir
+    args.result_dir = os.path.join(args.result_dir, args.trial_name)
+    # Create the result directory if not exists
+    if not os.path.exists(args.result_dir):
+        os.makedirs(args.result_dir)
+
+    # Init tensorboard logger
+    tb_folder = './tensorboard/' + args.trial_name
+    if not os.path.isdir(tb_folder):
+        os.makedirs(tb_folder)
+    logger = tb_logger.Logger(logdir=tb_folder, flush_secs=2)
 
     # Set the random seed. The np.random seed determines the dataset partition.
     # The torch_manual_seed determines the initial weight.
@@ -181,8 +213,8 @@ if __name__ == '__main__':
     np.random.seed(args.trial)
     torch.manual_seed(args.trial)
 
-    logging.info("client_ID = %d, size = %d" % (client_ID, args.client_num_per_round))
-    device = init_training_device(client_ID - 1, args.client_num_per_round - 1, 4)
+    logging.info("client_ID = %d, size = %d" % (client_ID, args.client_num_per_gateway))
+    device = init_training_device(client_ID - 1, args.client_num_per_gateway - 1, 4)
     # device = torch.device("cudo:0" if torch.cuda.is_available() else "cpu")
 
     # load data
@@ -203,14 +235,9 @@ if __name__ == '__main__':
                               train_data_local_num_dict, test_data_local_dict,
                               train_data_num, device, args, model_trainer)
 
-    size = args.client_num_per_round + 1
+    size = args.client_num_per_gateway + 1
 
     print("mqtt port: ", args.mqtt_port)
-
-    #     client_manager = FedHDClientManager(args, trainer, rank=client_ID, size=size,
-    #                                          backend="MQTT",
-    #                                          mqtt_host=args.mqtt_host,
-    #                                          mqtt_port=args.mqtt_port)
 
     # Init results dir
     args.result_dir = os.path.join(args.result_dir, args.trial_name)
@@ -249,7 +276,7 @@ if __name__ == '__main__':
     client_manager = BaselineCNNGatewayManager(args,
                                          aggregator,
                                          logger,
-                                         rank=0,
+                                         rank=client_ID,
                                          size=args.client_num_in_total + 1,
                                          backend="MQTT",
                                          mqtt_host=args.mqtt_host,

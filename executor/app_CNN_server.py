@@ -228,7 +228,9 @@ def register_device():
     training_task_args = {"method": args.method,
                           "dataset": args.dataset,
                           "data_dir": './../../data/' + args.dataset,
+                          "result_dir": args.result_dir,
                           "partition_method": args.partition_method,
+                          "is_preprocessed": args.is_preprocessed,
                           'partition_alpha': args.partition_alpha,
                           "partition_secondary": args.partition_secondary,
                           "partition_min_cls": args.partition_min_cls,
@@ -250,16 +252,24 @@ def register_device():
                           "rou": args.rou,
                           "batch_size": args.batch_size,
                           "frequency_of_the_test": args.frequency_of_the_test,
+                          "round_delay_limit": args.round_delay_limit,
 
-                          'dataset_url': '{}/get-preprocessed-data/{}'.format(
+                          "dataset_url": "{}/get-preprocessed-data/{}".format(
                               request.url_root,
                               client_id-1
                           ),
 
-                          'backend': args.backend,
-                          'mqtt_host': args.mqtt_host,
-                          'mqtt_port': args.mqtt_port,
-                          'trial': args.trial}
+                          "backend": args.backend,
+                          "mqtt_host": args.mqtt_host,
+                          "mqtt_port": args.mqtt_port,
+                          "test_batch_num": args.test_batch_num,
+                          "trial": args.trial,
+                          "selection": args.selection,
+                          "cs_gamma": args.cs_gamma,
+                          "association": args.association,
+                          "ca_phi": args.ca_phi,
+                          "adjust_round": args.adjust_round,
+    }
 
 
     return jsonify({"errno": 0,

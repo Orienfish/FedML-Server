@@ -264,6 +264,9 @@ def register_device():
                           "mqtt_port": args.mqtt_port,
                           "test_batch_num": args.test_batch_num,
                           "trial": args.trial,
+
+                          'alpha': args.alpha,
+                          'staleness_func': args.staleness_func,
                           "selection": args.selection,
                           "cs_gamma": args.cs_gamma,
                           "association": args.association,
@@ -357,12 +360,14 @@ if __name__ == '__main__':
 
     logging.info(args)
 
-    args.trial_name = "fedml_{}_{}_{}_c{}_c{}_{}_{}_ds{}_{}_{}_{}_e{}_{}_{}_{}".format(
+    args.trial_name = "fedml_{}_{}_{}_g{}_c{}_c{}_{}_{}_ds{}_{}_{}_e{}_r{}_gr{}_ar{}_{}".format(
         args.method, args.dataset, args.partition_method,
+        args.gateway_num_in_total,
         args.client_num_in_total, args.client_num_per_gateway,
         args.selection, args.association, args.data_size_per_client,
-        args.client_optimizer, args.lr, args.momentum, args.epochs,
-        args.comm_round, args.adjust_round, args.trial
+        args.client_optimizer, args.lr, args.epochs,
+        args.comm_round, args.gateway_comm_round, args.adjust_round,
+        args.trial
     )
 
     # Init results dir
@@ -405,7 +410,7 @@ if __name__ == '__main__':
 
     aggregator = BaselineCNNAggregator(args, train_data_global, test_data_global, train_data_num,
                                        train_data_local_dict, test_data_local_dict, train_data_local_num_dict,
-                                       args.client_num_in_total, device, model_trainer)
+                                       args.gateway_num_in_total, device, model_trainer)
     
     server_manager = BaselineCNNServerManager(args,
                                          aggregator,

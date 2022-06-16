@@ -87,6 +87,8 @@ def register(args, uuid):
             self.mqtt_port = training_task_args['mqtt_port']
             self.test_batch_num = training_task_args['test_batch_num']
             self.trial = training_task_args['trial']
+            self.alpha = training_task_args['alpha']
+            self.staleness_func = training_task_args['staleness_func']
             self.selection = training_task_args['selection']
             self.cs_gamma = training_task_args['cs_gamma']
             self.association = training_task_args['association']

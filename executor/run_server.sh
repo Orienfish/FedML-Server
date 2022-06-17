@@ -26,11 +26,13 @@ fi
 
 # Set proper global parameters for various algorithm
 if [ "$2" = "fedavg" ] ; then
-  gateway_comm_round=5
+  comm_round=10
+  gateway_comm_round=2
   adjust_round=1
 elif [ "$2" = "fedasync" ] ; then
-  gateway_comm_round=10
-  adjust_round=2
+  comm_round=30
+  gateway_comm_round=6
+  adjust_round=3
 fi
 
 # iid
@@ -40,7 +42,7 @@ if [ "$3" = "iid" ] ; then
     --target_accuracy "$target_acc" --epochs 5 --selection "$4" --association "$5" \
     --backend MQTT --mqtt_host "$MQTT_HOST" --mqtt_port "$MQTT_PORT" --server_ip "$MQTT_HOST" \
     --gateway_num_in_total "$TOTAL_GATEWAYS" --gateway_comm_round "$gateway_comm_round" \
-    --adjust_round "$adjust_round" \
+    --comm_round "$comm_round" --adjust_round "$adjust_round" \
     --trial "$6"
 fi
 
@@ -52,6 +54,6 @@ if [ "$3" = "noniid" ] ; then
     --target_accuracy "$target_acc" --epochs 5 --selection "$4" --association "$5" \
     --backend MQTT --mqtt_host "$MQTT_HOST" --mqtt_port "$MQTT_PORT" --server_ip "$MQTT_HOST" \
     --gateway_num_in_total "$TOTAL_GATEWAYS" --gateway_comm_round "$gateway_comm_round" \
-    --adjust_round "$adjust_round" \
+    --comm_round "$comm_round" --adjust_round "$adjust_round" \
     --trial "$6"
 fi

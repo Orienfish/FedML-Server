@@ -283,6 +283,7 @@ def register_device():
 
 
 def load_data(args, dataset_name):
+    traindata_cls_counts = None
     if dataset_name == "shakespeare":
         logging.info("load_data. dataset_name = %s" % dataset_name)
         client_num, train_data_num, test_data_num, train_data_global, test_data_global, \
@@ -316,11 +317,12 @@ def load_data(args, dataset_name):
         data_dir = './../../data/' + args.dataset
         train_data_num, test_data_num, train_data_global, test_data_global, \
         train_data_local_num_dict, train_data_local_dict, test_data_local_dict, \
-        class_num = data_loader(args.dataset, data_dir, args.partition_method,
-                                args.partition_label, args.partition_alpha, args.partition_secondary,
-                                args.partition_min_cls, args.partition_max_cls,
-                                args.client_num_in_total, args.batch_size,
-                                args.data_size_per_client)
+        class_num, traindata_cls_counts = \
+            data_loader(args.dataset, data_dir, args.partition_method,
+                        args.partition_label, args.partition_alpha, args.partition_secondary,
+                        args.partition_min_cls, args.partition_max_cls,
+                        args.client_num_in_total, args.batch_size,
+                        args.data_size_per_client)
         print(
             "================================={} loaded===============================#".format(
                 args.dataset))
@@ -328,7 +330,8 @@ def load_data(args, dataset_name):
         raise ValueError('dataset not supported: {}'.format(args.dataset))
 
     dataset = [train_data_num, test_data_num, train_data_global, test_data_global,
-               train_data_local_num_dict, train_data_local_dict, test_data_local_dict, class_num]
+               train_data_local_num_dict, train_data_local_dict, test_data_local_dict,
+               class_num, traindata_cls_counts]
     return dataset
 
 
@@ -398,7 +401,14 @@ if __name__ == '__main__':
     # load data
     dataset = load_data(args, args.dataset)
     [train_data_num, test_data_num, train_data_global, test_data_global,
-     train_data_local_num_dict, train_data_local_dict, test_data_local_dict, class_num] = dataset
+     train_data_local_num_dict, train_data_local_dict, test_data_local_dict,
+     class_num, traindata_cls_counts] = dataset
+
+    cls_num = None
+    if traindata_cls_counts is not None:
+        cls_num = [0] * args.client_num_in_total
+        for k in traindata_cls_counts:
+            cls_num[k] = len(traindata_cls_counts[k])
 
     # create model.
     # Note if the model is DNN (e.g., ResNet), the training will be very slow.
@@ -415,6 +425,7 @@ if __name__ == '__main__':
     server_manager = BaselineCNNServerManager(args,
                                          aggregator,
                                          logger,
+                                         cls_num,
                                          rank=0,
                                          size=args.client_num_in_total + 1,
                                          backend="MQTT",

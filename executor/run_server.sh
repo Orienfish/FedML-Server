@@ -13,9 +13,9 @@
 
 MQTT_HOST=132.239.17.132
 MQTT_PORT=61613
-TOTAL_CLIENTS=20
-TOTAL_GATEWAYS=2
-CLIENTS_PER_GATEWAY=6
+TOTAL_CLIENTS=40
+TOTAL_GATEWAYS=3
+CLIENTS_PER_GATEWAY=7
 
 # Set proper global parameters for various dataset
 if [ "$1" = "mnist" ] ; then
@@ -26,13 +26,13 @@ fi
 
 # Set proper global parameters for various algorithm
 if [ "$2" = "fedavg" ] ; then
-  comm_round=10
-  gateway_comm_round=2
+  comm_round=5
+  gateway_comm_round=5
   adjust_round=1
 elif [ "$2" = "fedasync" ] ; then
-  comm_round=30
-  gateway_comm_round=6
-  adjust_round=3
+  comm_round=40
+  gateway_comm_round=10
+  adjust_round=2
 fi
 
 # iid

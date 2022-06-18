@@ -115,6 +115,7 @@ def init_training_device(process_ID, fl_worker_num, gpu_num_per_machine):
     return device
 
 def load_data(args, dataset_name):
+    traindata_cls_counts = None
     if dataset_name == "shakespeare":
         logging.info("load_data. dataset_name = %s" % dataset_name)
         client_num, train_data_num, test_data_num, train_data_global, test_data_global, \
@@ -123,14 +124,14 @@ def load_data(args, dataset_name):
         args.client_num_in_total = client_num
     elif dataset_name == "cifar100" or dataset_name == "cinic10":
         if dataset_name == "cifar100":
-            data_loader = load_partition_data_cifar100  # Not tested
-        else:  # cinic10
-            data_loader = load_partition_data_cinic10  # Not tested
+            data_loader = load_partition_data_cifar100 # Not tested
+        else: # cinic10
+            data_loader = load_partition_data_cinic10 # Not tested
 
         print(
             "============================Starting loading {}==========================#".format(
                 args.dataset))
-        data_dir = './../data/' + args.dataset
+        data_dir = './../../data/' + args.dataset
         train_data_num, test_data_num, train_data_global, test_data_global, \
         train_data_local_num_dict, train_data_local_dict, test_data_local_dict, \
         class_num = data_loader(args.dataset, data_dir, args.partition_method,
@@ -140,19 +141,20 @@ def load_data(args, dataset_name):
             "================================={} loaded===============================#".format(
                 args.dataset))
     elif dataset_name == "mnist" or dataset_name == "fashionmnist" or \
-            dataset_name == "cifar10":
+        dataset_name == "cifar10":
         data_loader = load_partition_data
         print(
             "============================Starting loading {}==========================#".format(
                 args.dataset))
-        data_dir = './../data/' + args.dataset
+        data_dir = './../../data/' + args.dataset
         train_data_num, test_data_num, train_data_global, test_data_global, \
         train_data_local_num_dict, train_data_local_dict, test_data_local_dict, \
-        class_num = data_loader(args.dataset, data_dir, args.partition_method,
-                                args.partition_label, args.partition_alpha, args.partition_secondary,
-                                args.partition_min_cls, args.partition_max_cls,
-                                args.client_num_in_total, args.batch_size,
-                                args.data_size_per_client)
+        class_num, traindata_cls_counts = \
+            data_loader(args.dataset, data_dir, args.partition_method,
+                        args.partition_label, args.partition_alpha, args.partition_secondary,
+                        args.partition_min_cls, args.partition_max_cls,
+                        args.client_num_in_total, args.batch_size,
+                        args.data_size_per_client)
         print(
             "================================={} loaded===============================#".format(
                 args.dataset))
@@ -160,8 +162,10 @@ def load_data(args, dataset_name):
         raise ValueError('dataset not supported: {}'.format(args.dataset))
 
     dataset = [train_data_num, test_data_num, train_data_global, test_data_global,
-               train_data_local_num_dict, train_data_local_dict, test_data_local_dict, class_num]
+               train_data_local_num_dict, train_data_local_dict, test_data_local_dict,
+               class_num, traindata_cls_counts]
     return dataset
+
 
 def create_model(args):
     if args.dataset == "mnist":
@@ -222,7 +226,8 @@ if __name__ == '__main__':
     # load data
     dataset = load_data(args, args.dataset)
     [train_data_num, test_data_num, train_data_global, test_data_global,
-     train_data_local_num_dict, train_data_local_dict, test_data_local_dict, class_num] = dataset
+     train_data_local_num_dict, train_data_local_dict, test_data_local_dict,
+     class_num, traindata_cls_counts] = dataset
 
     model = create_model(args)
 

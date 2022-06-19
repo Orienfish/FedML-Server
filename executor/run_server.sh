@@ -22,6 +22,12 @@ if [ "$1" = "mnist" ] ; then
   target_acc=0.8
 elif [ "$1" = "fashionmnist" ] ; then
   target_acc=0.6
+elif [ "$1" = "shakespeare" ] ; then
+  target_acc=0.35
+elif [ "$1" = "har" ] ; then
+  target_acc=0.9
+elif [ "$1" = "hpwren" ] ; then
+  target_acc=1
 fi
 
 # Set proper global parameters for various algorithm

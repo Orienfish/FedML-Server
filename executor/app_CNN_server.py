@@ -105,7 +105,7 @@ def add_args(parser):
     parser.add_argument('--momentum', type=float, default=0.9,
                         help='sgd optimizer momentum 0.9')
 
-    parser.add_argument('--rou', type=float, default=10.0,
+    parser.add_argument('--rou', type=float, default=1.0,
                         help='weight for l2 loss')
 
     parser.add_argument('--epochs', type=int, default=5,
@@ -123,7 +123,7 @@ def add_args(parser):
     parser.add_argument('--frequency_of_the_test', type=int, default=1,
                         help='the frequency of the algorithms')
 
-    parser.add_argument('--round_delay_limit', type=int, default=1200,
+    parser.add_argument('--round_delay_limit', type=int, default=1500,
                         help='the max waiting time in sync round')
 
 
@@ -299,7 +299,7 @@ def load_data(args, dataset_name):
         print(
             "============================Starting loading {}==========================#".format(
                 args.dataset))
-        data_dir = './../../data/' + args.dataset
+        data_dir = './../data/' + args.dataset
         train_data_num, test_data_num, train_data_global, test_data_global, \
         train_data_local_num_dict, train_data_local_dict, test_data_local_dict, \
         class_num = data_loader(args.dataset, data_dir, args.partition_method,
@@ -314,7 +314,7 @@ def load_data(args, dataset_name):
         print(
             "============================Starting loading {}==========================#".format(
                 args.dataset))
-        data_dir = './../../data/' + args.dataset
+        data_dir = './../data/' + args.dataset
         train_data_num, test_data_num, train_data_global, test_data_global, \
         train_data_local_num_dict, train_data_local_dict, test_data_local_dict, \
         class_num, traindata_cls_counts = \

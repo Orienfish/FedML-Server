@@ -201,12 +201,6 @@ if __name__ == '__main__':
         args.comm_round, args.adjust_round, args.trial
     )
 
-    # Init results dir
-    args.result_dir = os.path.join(args.result_dir, args.trial_name)
-    # Create the result directory if not exists
-    if not os.path.exists(args.result_dir):
-        os.makedirs(args.result_dir)
-
     # Init tensorboard logger
     tb_folder = './tensorboard/' + args.trial_name
     if not os.path.isdir(tb_folder):
@@ -246,11 +240,11 @@ if __name__ == '__main__':
 
     print("mqtt port: ", args.mqtt_port)
 
-    # Init results dir
-    args.result_dir = os.path.join(args.result_dir, args.trial_name)
+    # Init results dir - should have already been initialized by server
+    #args.result_dir = os.path.join(args.result_dir, args.trial_name)
     # Create the result directory if not exists
-    if not os.path.exists(args.result_dir):
-        os.makedirs(args.result_dir)
+    #if not os.path.exists(args.result_dir):
+    #    os.makedirs(args.result_dir)
 
     # Init tensorboard logger
     tb_folder = './tensorboard/' + args.trial_name

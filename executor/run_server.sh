@@ -26,7 +26,7 @@ fi
 
 # Set proper global parameters for various algorithm
 if [ "$2" = "fedavg" ] ; then
-  comm_round=5
+  comm_round=3
   gateway_comm_round=5
   adjust_round=1
 elif [ "$2" = "fedasync" ] ; then

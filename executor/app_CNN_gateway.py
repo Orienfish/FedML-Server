@@ -287,8 +287,23 @@ if __name__ == '__main__':
     torch.manual_seed(args.trial)
 
     batch_selection = []
-    for i in range(args.test_batch_num):
-        batch_selection.append(i)
+    counter = 0
+
+    if args.dataset == 'har':
+        for i in range(30):
+            batch_selection.append(i)
+
+    else:
+        for batch_idx, (x, y) in enumerate(test_data_global):
+            if counter >= args.test_batch_num:
+                break
+            if len(x) == args.batch_size:
+                batch_selection.append(batch_idx)
+                counter+=1
+
+
+    logging.info("TestBatch Selection:")
+    logging.info(batch_selection)
 
     # create model.
     # Note if the model is DNN (e.g., ResNet), the training will be very slow.

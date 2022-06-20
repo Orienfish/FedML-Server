@@ -15,7 +15,7 @@ MQTT_HOST=132.239.17.132
 MQTT_PORT=61613
 TOTAL_CLIENTS=40
 TOTAL_GATEWAYS=3
-CLIENTS_PER_GATEWAY=7
+CLIENTS_PER_GATEWAY=4
 
 # Set proper global parameters for various dataset
 if [ "$1" = "mnist" ] ; then
@@ -27,12 +27,12 @@ elif [ "$1" = "shakespeare" ] ; then
 elif [ "$1" = "har" ] ; then
   target_acc=0.9
 elif [ "$1" = "hpwren" ] ; then
-  target_acc=1
+  target_acc=100  # Not used because HPWREN uses test loss not accuracy
 fi
 
 # Set proper global parameters for various algorithm
 if [ "$2" = "fedavg" ] ; then
-  comm_round=3
+  comm_round=4
   gateway_comm_round=5
   adjust_round=1
 elif [ "$2" = "fedasync" ] ; then

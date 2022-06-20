@@ -126,7 +126,7 @@ def add_args(parser):
     parser.add_argument('--frequency_of_the_test', type=int, default=1,
                         help='the frequency of the algorithms')
 
-    parser.add_argument('--round_delay_limit', type=int, default=1500,
+    parser.add_argument('--round_delay_limit', type=int, default=1200,
                         help='the max waiting time in sync round')
 
 
@@ -415,10 +415,6 @@ if __name__ == '__main__':
     np.random.seed(args.trial)
     torch.manual_seed(args.trial)
 
-    batch_selection = []
-    for i in range(args.test_batch_num):
-        batch_selection.append(i)
-
     # GPU 0
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -427,6 +423,27 @@ if __name__ == '__main__':
     [train_data_num, test_data_num, train_data_global, test_data_global,
      train_data_local_num_dict, train_data_local_dict, test_data_local_dict,
      class_num] = dataset
+
+
+    batch_selection = []
+    counter = 0
+
+    if args.dataset == 'har':
+        for i in range(30):
+            batch_selection.append(i)
+
+    else:
+        for batch_idx, (x, y) in enumerate(test_data_global):
+            if counter >= args.test_batch_num:
+                break
+            if len(x) == args.batch_size:
+                batch_selection.append(batch_idx)
+                counter+=1
+
+
+    logging.info("TestBatch Selection:")
+    logging.info(batch_selection)
+
 
     traindata_cls_counts = None
     cls_num = None

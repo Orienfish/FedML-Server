@@ -126,7 +126,7 @@ def add_args(parser):
     parser.add_argument('--frequency_of_the_test', type=int, default=1,
                         help='the frequency of the algorithms')
 
-    parser.add_argument('--round_delay_limit', type=int, default=1200,
+    parser.add_argument('--round_delay_limit', type=int, default=1500,
                         help='the max waiting time in sync round')
 
 
@@ -338,6 +338,7 @@ def load_data(args, dataset_name):
         train_data_local_num_dict, train_data_local_dict, test_data_local_dict, \
         class_num = data_loader(args.dataset, data_dir, args.partition_method,
                                 args.partition_label, args.partition_alpha, args.partition_secondary,
+                                args.partition_min_cls, args.partition_max_cls,
                                 args.client_num_in_total, args.batch_size,
                                 args.data_size_per_client)
         print(
@@ -447,10 +448,10 @@ if __name__ == '__main__':
 
     traindata_cls_counts = None
     cls_num = None
-    if traindata_cls_counts is not None:
-        cls_num = [0] * args.client_num_in_total
-        for k in traindata_cls_counts:
-            cls_num[k] = len(traindata_cls_counts[k])
+    #if traindata_cls_counts is not None:
+    #    cls_num = [0] * args.client_num_in_total
+    #    for k in traindata_cls_counts:
+    #        cls_num[k] = len(traindata_cls_counts[k])
 
     # create model.
     # Note if the model is DNN (e.g., ResNet), the training will be very slow.
